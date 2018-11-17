@@ -15,8 +15,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from IPython.display import HTML
-from bandit import *
 import pickle
+
 
 # custom weights initialization called on netG and netD
 def weights_init(m):
@@ -94,10 +94,6 @@ if __name__ == '__main__':
     # Stuff that should be argparsed:
     # Number of max D updates for each G update
     k_max = 5
-    stat_reward = False
-    conf_bound = False
-    eps = .1
-    step_size = 0.95
 
     # Number of workers for dataloader
     workers = 6
@@ -180,6 +176,7 @@ if __name__ == '__main__':
     D_losses_all = []
 
     for iter_run in range(num_runs):
+        ############################################# Training 1 D 1 G update GAN
         # Create the generator
         netG = Generator(ngpu).to(device)
         # Apply the weights_init function to randomly initialize all weights
@@ -191,17 +188,14 @@ if __name__ == '__main__':
         # Setup Adam optimizers for both G and D
         optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(beta1, 0.999))
         optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(beta1, 0.999))
-        # Create MAB
-        bandito = Bandit(n_arms=k_max, stat_reward=stat_reward, conf_bound=conf_bound, eps=eps, step_size=step_size)
-        k = bandito.choose_arm()
+
         # Lists to keep track of progress
         img_list = []
         G_losses = []
         D_losses = []
-        list_errD = []
         iters = 0
 
-        print("Starting Training MAB GAN...")
+        print("Starting Training 1 D 1 G update GAN...")
         # For each epoch
         for epoch in range(num_epochs):
             # For each batch in the dataloader
@@ -238,59 +232,49 @@ if __name__ == '__main__':
                 D_G_z1 = output.mean().item()
                 # Add the gradients from the all-real and all-fake batches
                 errD = errD_real + errD_fake
-                list_errD.append(errD.item())
                 # Update D
                 optimizerD.step()
 
-                if len(list_errD) % k == 0:
-                    ############################
-                    # (2) Update G network: maximize log(D(G(z)))
-                    ###########################
-                    netG.zero_grad()
-                    label.fill_(real_label)  # fake labels are real for generator cost
-                    # Since we just updated D, perform another forward pass of all-fake batch through D
-                    output = netD(fake).view(-1)
-                    # Calculate G's loss based on this output
-                    errG = criterion(output, label)
-                    # Calculate gradients for G
-                    errG.backward()
-                    D_G_z2 = output.mean().item()
-                    # Update G
-                    optimizerG.step()
-                    ################# MAB Updates
-                    total_loss = np.average(list_errD) + errG.item()
-                    list_errD = []
-                    bandito.update(reward=-total_loss)
-                    # Find the best k
-                    k = bandito.choose_arm()
+                ############################
+                # (2) Update G network: maximize log(D(G(z)))
+                ###########################
+                netG.zero_grad()
+                label.fill_(real_label)  # fake labels are real for generator cost
+                # Since we just updated D, perform another forward pass of all-fake batch through D
+                output = netD(fake).view(-1)
+                # Calculate G's loss based on this output
+                errG = criterion(output, label)
+                # Calculate gradients for G
+                errG.backward()
+                D_G_z2 = output.mean().item()
+                # Update G
+                optimizerG.step()
 
                 # Save Losses for plotting later
                 G_losses.append(errG.item())
                 D_losses.append(errD.item())
 
                 # Check how the generator is doing by saving G's output on fixed_noise
-                if (iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
+                if (iters % 500 == 0) or ((epoch == num_epochs - 1) and (i == len(dataloader) - 1)):
                     # Output training stats
                     print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tk: %i'
                           % (epoch, num_epochs, i, len(dataloader),
-                             errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, k))
+                             errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, 1))
 
                     with torch.no_grad():
                         fake = netG(fixed_noise).detach().cpu()
                     img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
 
                 iters += 1
-
         G_losses_all.append(G_losses)
         D_losses_all.append(D_losses)
 
-    with open('G_loss_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'wb') as f:
+    with open('G_loss_orig', 'wb') as f:
         pickle.dump(G_losses_all, f)
     f.close()
-    with open('D_loss_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'wb') as f:
+    with open('D_loss_orig', 'wb') as f:
         pickle.dump(D_losses_all, f)
     f.close()
-    with open('test_imgs_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'wb') as f:
+    with open('test_imgs_orig', 'wb') as f:
         pickle.dump(img_list, f)
     f.close()
-
