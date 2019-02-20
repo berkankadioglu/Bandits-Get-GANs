@@ -5,6 +5,7 @@ import os
 import random
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import matplotlib as mpl
 from IPython.display import HTML
 import torch
 import torch.nn as nn
@@ -16,37 +17,6 @@ import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 
-# Number of workers for dataloader
-workers = 6
-
-# Root directory for dataset
-dataroot = "/home/berkan/Desktop/Repo/BanditsGetGANs/celeba/"
-
-# Batch size during training
-batch_size = 128
-
-# Spatial size of training images. All images will be resized to this
-#   size using a transformer.
-image_size = 64
-
-# We can use an image folder dataset the way we have it setup.
-# Create the dataset
-dataset = dset.ImageFolder(root=dataroot,
-                           transform=transforms.Compose([
-                               transforms.Resize(image_size),
-                               transforms.CenterCrop(image_size),
-                               transforms.ToTensor(),
-                               transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                           ]))
-# Create the dataloader
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
-                                         shuffle=True, num_workers=workers)
-
-# Decide which device we want to run on
-ngpu = 1
-device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
-
-####################################################
 # Load and standardize data
 # Original GAN
 with open('G_loss_orig', 'rb') as f:
@@ -76,6 +46,9 @@ f.close()
 with open('test_imgs_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'rb') as f:
     img_list_MAB_stat_false_conf_false = pickle.load(f)
 f.close()
+with open('k_list_MAB' + '_stat_' + str(stat_reward) + '_ucb_' + str(conf_bound), 'rb') as f:
+    k_list_MAB_stat_false_conf_false = pickle.load(f)
+f.close()
 
 G_losses_MAB_stat_false_conf_false_mean = np.mean(G_losses_MAB_stat_false_conf_false, axis=0)
 G_losses_MAB_stat_false_conf_false_std = np.std(G_losses_MAB_stat_false_conf_false - G_losses_MAB_stat_false_conf_false_mean, axis=0)
@@ -86,13 +59,12 @@ stat_reward = True
 conf_bound = False
 with open('G_loss_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'rb') as f:
     G_losses_MAB_stat_true_conf_false = pickle.load(f)
-f.close()
 with open('D_loss_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'rb') as f:
     D_losses_MAB_stat_true_conf_false = pickle.load(f)
-f.close()
 with open('test_imgs_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'rb') as f:
     img_list_MAB_stat_true_conf_false = pickle.load(f)
-f.close()
+# with open('k_list_MAB' + '_stat_' + str(stat_reward) + '_ucb_' + str(conf_bound), 'rb') as f:
+#     k_list_MAB_stat_true_conf_false = pickle.load(f)
 
 G_losses_MAB_stat_true_conf_false_mean = np.mean(G_losses_MAB_stat_true_conf_false, axis=0)
 G_losses_MAB_stat_true_conf_false_std = np.std(G_losses_MAB_stat_true_conf_false - G_losses_MAB_stat_true_conf_false_mean, axis=0)
@@ -109,6 +81,9 @@ with open('D_loss_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'rb') 
 f.close()
 with open('test_imgs_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'rb') as f:
     img_list_MAB_stat_false_conf_true = pickle.load(f)
+f.close()
+with open('k_list_MAB' + '_stat_' + str(stat_reward) + '_ucb_' + str(conf_bound), 'rb') as f:
+    k_list_MAB_stat_false_conf_true = pickle.load(f)
 f.close()
 
 G_losses_MAB_stat_false_conf_true_mean = np.mean(G_losses_MAB_stat_false_conf_true, axis=0)
@@ -127,28 +102,37 @@ f.close()
 with open('test_imgs_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'rb') as f:
     img_list_MAB_stat_true_conf_true = pickle.load(f)
 f.close()
+with open('k_list_MAB' + '_stat_' + str(stat_reward) + '_ucb_' + str(conf_bound), 'rb') as f:
+    k_list_MAB_stat_true_conf_true = pickle.load(f)
+f.close()
 
 G_losses_MAB_stat_true_conf_true_mean = np.mean(G_losses_MAB_stat_true_conf_true, axis=0)
 G_losses_MAB_stat_true_conf_true_std = np.std(G_losses_MAB_stat_true_conf_true - G_losses_MAB_stat_true_conf_true_mean, axis=0)
 D_losses_MAB_stat_true_conf_true_mean = np.mean(D_losses_MAB_stat_true_conf_true, axis=0)
 D_losses_MAB_stat_true_conf_true_std = np.std(D_losses_MAB_stat_true_conf_true - D_losses_MAB_stat_true_conf_true_mean, axis=0)
 ####################################################
+mpl.rcParams['lines.linewidth'] = .4
 # Generator Plots
 plt.figure(figsize=(10,5))
 plt.title("Generator Loss During Training")
-plt.fill_between(range(len(G_orig_mean)), y1=G_orig_mean-G_orig_std, y2=G_orig_mean+G_orig_std, label="Standard GAN")
-plt.fill_between(range(len(G_losses_MAB_stat_true_conf_true_mean)),
-                 y1=G_losses_MAB_stat_true_conf_true_mean-G_losses_MAB_stat_true_conf_true_std,
-                 y2=G_losses_MAB_stat_true_conf_true_mean+G_losses_MAB_stat_true_conf_true_std, label="MAB GAN stat. and UCB")
-plt.fill_between(range(len(G_losses_MAB_stat_false_conf_true_mean)),
-                 y1=G_losses_MAB_stat_false_conf_true_mean-G_losses_MAB_stat_false_conf_true_std,
-                 y2=G_losses_MAB_stat_false_conf_true_mean+G_losses_MAB_stat_false_conf_true_std, label="MAB GAN non-stat. and UCB")
-plt.fill_between(range(len(G_losses_MAB_stat_true_conf_false_mean)),
-                 y1=G_losses_MAB_stat_true_conf_false_mean-G_losses_MAB_stat_true_conf_false_std,
-                 y2=G_losses_MAB_stat_true_conf_false_mean+G_losses_MAB_stat_true_conf_false_std, label="MAB GAN stat. and no UCB")
-plt.fill_between(range(len(G_losses_MAB_stat_false_conf_false_mean)),
-                 y1=G_losses_MAB_stat_false_conf_false_mean-G_losses_MAB_stat_false_conf_false_std,
-                 y2=G_losses_MAB_stat_false_conf_false_mean+G_losses_MAB_stat_false_conf_false_std, label="MAB GAN non-stat. and no UCB")
+plt.plot(range(len(G_orig_mean)), G_orig_mean, label="Standard GAN")
+#plt.fill_between(range(len(G_orig_mean)), y1=G_orig_mean-G_orig_std, y2=G_orig_mean+G_orig_std)
+plt.plot(range(len(G_losses_MAB_stat_true_conf_true_mean)), G_losses_MAB_stat_true_conf_true_mean, label="MAB GAN stat. and UCB")
+#plt.fill_between(range(len(G_losses_MAB_stat_true_conf_true_mean)),
+#                 y1=G_losses_MAB_stat_true_conf_true_mean-G_losses_MAB_stat_true_conf_true_std,
+#                 y2=G_losses_MAB_stat_true_conf_true_mean+G_losses_MAB_stat_true_conf_true_std)
+plt.plot(range(len(G_losses_MAB_stat_false_conf_true_mean)), G_losses_MAB_stat_false_conf_true_mean, label="MAB GAN non-stat. and UCB")
+#plt.fill_between(range(len(G_losses_MAB_stat_false_conf_true_mean)),
+#                 y1=G_losses_MAB_stat_false_conf_true_mean-G_losses_MAB_stat_false_conf_true_std,
+#                 y2=G_losses_MAB_stat_false_conf_true_mean+G_losses_MAB_stat_false_conf_true_std)
+plt.plot(range(len(G_losses_MAB_stat_true_conf_false_mean)), G_losses_MAB_stat_true_conf_false_mean, label="MAB GAN stat. and no UCB")
+#plt.fill_between(range(len(G_losses_MAB_stat_true_conf_false_mean)),
+#                 y1=G_losses_MAB_stat_true_conf_false_mean-G_losses_MAB_stat_true_conf_false_std,
+#                 y2=G_losses_MAB_stat_true_conf_false_mean+G_losses_MAB_stat_true_conf_false_std)
+plt.plot(range(len(G_losses_MAB_stat_false_conf_false_mean)), G_losses_MAB_stat_false_conf_false_mean, label="MAB GAN non-stat. and no UCB")
+#plt.fill_between(range(len(G_losses_MAB_stat_false_conf_false_mean)),
+#                 y1=G_losses_MAB_stat_false_conf_false_mean-G_losses_MAB_stat_false_conf_false_std,
+#                 y2=G_losses_MAB_stat_false_conf_false_mean+G_losses_MAB_stat_false_conf_false_std)
 plt.xlabel("iterations")
 plt.ylabel("Generator Loss")
 plt.legend()
@@ -157,44 +141,56 @@ plt.show()
 # Discriminator Plots
 plt.figure(figsize=(10,5))
 plt.title("Discriminator Loss During Training")
-plt.fill_between(range(len(D_orig_mean)), y1=D_orig_mean-D_orig_std, y2=D_orig_mean+D_orig_std, label="Standard GAN")
-plt.fill_between(range(len(D_losses_MAB_stat_true_conf_true_mean)),
-                 y1=D_losses_MAB_stat_true_conf_true_mean-D_losses_MAB_stat_true_conf_true_std,
-                 y2=D_losses_MAB_stat_true_conf_true_mean+D_losses_MAB_stat_true_conf_true_std, label="MAB GAN stat. and UCB")
-plt.fill_between(range(len(D_losses_MAB_stat_false_conf_true_mean)),
-                 y1=D_losses_MAB_stat_false_conf_true_mean-D_losses_MAB_stat_false_conf_true_std,
-                 y2=D_losses_MAB_stat_false_conf_true_mean+D_losses_MAB_stat_false_conf_true_std, label="MAB GAN non-stat. and UCB")
-plt.fill_between(range(len(D_losses_MAB_stat_true_conf_false_mean)),
-                 y1=D_losses_MAB_stat_true_conf_false_mean-D_losses_MAB_stat_true_conf_false_std,
-                 y2=D_losses_MAB_stat_true_conf_false_mean+D_losses_MAB_stat_true_conf_false_std, label="MAB GAN stat. and no UCB")
-plt.fill_between(range(len(D_losses_MAB_stat_false_conf_false_mean)),
-                 y1=D_losses_MAB_stat_false_conf_false_mean-D_losses_MAB_stat_false_conf_false_std,
-                 y2=D_losses_MAB_stat_false_conf_false_mean+D_losses_MAB_stat_false_conf_false_std, label="MAB GAN non-stat. and no UCB")
+plt.plot(range(len(D_orig_mean)), D_orig_mean, label="Standard GAN")
+#plt.fill_between(range(len(D_orig_mean)), y1=D_orig_mean-D_orig_std, y2=D_orig_mean+D_orig_std)
+plt.plot(range(len(D_losses_MAB_stat_true_conf_true_mean)), D_losses_MAB_stat_true_conf_true_mean, label="MAB GAN stat. and UCB")
+#plt.fill_between(range(len(D_losses_MAB_stat_true_conf_true_mean)),
+#                 y1=D_losses_MAB_stat_true_conf_true_mean-D_losses_MAB_stat_true_conf_true_std,
+#                 y2=D_losses_MAB_stat_true_conf_true_mean+D_losses_MAB_stat_true_conf_true_std)
+plt.plot(range(len(D_losses_MAB_stat_false_conf_true_mean)), D_losses_MAB_stat_false_conf_true_mean, label="MAB GAN non-stat. and UCB")
+#plt.fill_between(range(len(D_losses_MAB_stat_false_conf_true_mean)),
+#                 y1=D_losses_MAB_stat_false_conf_true_mean-D_losses_MAB_stat_false_conf_true_std,
+#                 y2=D_losses_MAB_stat_false_conf_true_mean+D_losses_MAB_stat_false_conf_true_std)
+plt.plot(range(len(D_losses_MAB_stat_true_conf_false_mean)), D_losses_MAB_stat_true_conf_false_mean, label="MAB GAN stat. and no UCB")
+#plt.fill_between(range(len(D_losses_MAB_stat_true_conf_false_mean)),
+#                 y1=D_losses_MAB_stat_true_conf_false_mean-D_losses_MAB_stat_true_conf_false_std,
+#                 y2=D_losses_MAB_stat_true_conf_false_mean+D_losses_MAB_stat_true_conf_false_std)
+plt.plot(range(len(D_losses_MAB_stat_false_conf_false_mean)), D_losses_MAB_stat_false_conf_false_mean, label="MAB GAN non-stat. and no UCB")
+#plt.fill_between(range(len(D_losses_MAB_stat_false_conf_false_mean)),
+#                 y1=D_losses_MAB_stat_false_conf_false_mean-D_losses_MAB_stat_false_conf_false_std,
+#                 y2=D_losses_MAB_stat_false_conf_false_mean+D_losses_MAB_stat_false_conf_false_std)
 plt.xlabel("iterations")
 plt.ylabel("Discriminator Loss")
 plt.legend()
 plt.show()
 
 ####################################################
-# **Real Images vs. Fake Images**
-# Grab a batch of real images from the dataloader
-real_batch = next(iter(dataloader))
-
 # Plot the fake images from the last epoch
 plt.subplot(1,2,1)
 plt.axis("off")
-plt.title("Fake Images for Standard GAN Training")
+plt.title("Fake Images for Standard GAN")
 plt.imshow(np.transpose(img_list_orig[-1],(1,2,0)))
-plt.show()
+#plt.show()
 
 # Plot the fake images from the last epoch
 plt.subplot(1,2,2)
 plt.axis("off")
-plt.title("Fake Images for MAB GAN Training")
+plt.title("Fake Images for MAB GAN")
 plt.imshow(np.transpose(img_list_MAB_stat_true_conf_true[-1],(1,2,0)))
 plt.show()
+print()
+#######################################################
+mpl.rcParams['lines.linewidth'] = 1
+# Plot k
+plt.figure(figsize=(10,5))
+plt.title("Number of Discriminator Updates per Iteration")
+plt.plot(np.ones((len(k_list_MAB_stat_true_conf_true[0]),)), label="Standard GAN")
+plt.plot(k_list_MAB_stat_true_conf_true[0], label="MAB GAN")
 
-######################################################################
+plt.xlabel("iterations")
+plt.legend()
+plt.show()
+#######################################################
 # Plot some training images
 # real_batch = next(iter(dataloader))
 # plt.figure(figsize=(8,8))

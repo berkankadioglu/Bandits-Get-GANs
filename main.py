@@ -18,6 +18,7 @@ from IPython.display import HTML
 from bandit import *
 import pickle
 
+
 # custom weights initialization called on netG and netD
 def weights_init(m):
     classname = m.__class__.__name__
@@ -35,7 +36,7 @@ class Generator(nn.Module):
         self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d( nz, ngf * 8, 4, 1, 0, bias=False),
+            nn.ConvTranspose2d(nz, ngf * 8, 4, 1, 0, bias=False),
             nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 4 x 4
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     # Number of max D updates for each G update
     k_max = 5
     stat_reward = False
-    conf_bound = False
+    conf_bound = True
     eps = .1
     step_size = 0.95
 
@@ -178,6 +179,7 @@ if __name__ == '__main__':
     # Keep track of losses for all MC Runs
     G_losses_all = []
     D_losses_all = []
+    selected_k_all = []
 
     for iter_run in range(num_runs):
         # Create the generator
@@ -196,6 +198,7 @@ if __name__ == '__main__':
         k = bandito.choose_arm()
         # Lists to keep track of progress
         img_list = []
+        k_list = []
         G_losses = []
         D_losses = []
         list_errD = []
@@ -267,6 +270,7 @@ if __name__ == '__main__':
                 # Save Losses for plotting later
                 G_losses.append(errG.item())
                 D_losses.append(errD.item())
+                k_list.append(k)
 
                 # Check how the generator is doing by saving G's output on fixed_noise
                 if (iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
@@ -283,6 +287,7 @@ if __name__ == '__main__':
 
         G_losses_all.append(G_losses)
         D_losses_all.append(D_losses)
+        selected_k_all.append(k_list)
 
     with open('G_loss_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'wb') as f:
         pickle.dump(G_losses_all, f)
@@ -292,5 +297,8 @@ if __name__ == '__main__':
     f.close()
     with open('test_imgs_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'wb') as f:
         pickle.dump(img_list, f)
+    f.close()
+    with open('k_list_MAB'+'_stat_'+str(stat_reward)+'_ucb_'+str(conf_bound), 'wb') as f:
+        pickle.dump(selected_k_all, f)
     f.close()
 
